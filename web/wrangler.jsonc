@@ -1,0 +1,32 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "haksik",
+	"compatibility_date": "2026-11-19",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "haksik"
+		}
+	],
+	"images": {
+		// Enable image optimization
+		// see https://opennext.js.org/cloudflare/howtos/image
+		"binding": "IMAGES"
+	},
+	// 식판 인식 API 남용 방지: 사용자당 분당 5회
+	"ratelimits": [
+		{ "name": "RECOGNIZE_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }
+	],
+	"vars": { "GEMINI_MODEL": "gemini-flash-latest" }
+}
