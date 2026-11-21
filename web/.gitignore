@@ -40,16 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# OpenNext
-.open-next
-
-# wrangler files
-.wrangler
-.dev.vars*
-!.dev.vars.example
-
 # 예시 env 파일은 커밋한다
 !.env.example
-# 평가용 사진 (인스타 사진은 저작권이 있어 저장소에 올리지 않는다)
-eval/images/*
-!eval/images/.gitkeep

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { addDays, kstDate, weekStart } from "@/lib/date";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { createClient, supabaseConfigured } from "@/lib/supabase/server";
 import { MEAL_LABEL, type Meal, type Menu, type WeeklyMenuRow } from "@/lib/types";
 import { addMenu, addWeeklyMenu, deleteWeeklyMenu } from "./actions";
 
@@ -16,6 +17,7 @@ export default function AdminMenuPage() {
 const input = "rounded border p-1";
 
 async function AdminMenu() {
+  if (!supabaseConfigured) notFound();
   const supabase = await createClient();
   const monday = weekStart(kstDate());
   const [{ data: menus }, { data: week }] = await Promise.all([

@@ -1,4 +1,4 @@
-// 화면(A)과 API(B, D) 사이의 계약. 바꿀 때는 팀에 공유한다.
+// 화면과 DB 사이에서 쓰는 공통 타입. 바꿀 때는 팀에 공유한다.
 
 export type Meal = "breakfast" | "lunch" | "dinner";
 export type GoalMode = "maintain" | "muscle" | "fat_loss" | "exam";
@@ -17,7 +17,7 @@ export type Nutrients = {
   sodium: number;
 };
 
-export type Menu = Nutrients & { id: number; name: string; price: number | null };
+export type Menu = Nutrients & { id: number; name: string; price: number | null; model_class_id: number | null };
 
 export type WeeklyMenuRow = {
   date: string; // YYYY-MM-DD
@@ -36,11 +36,3 @@ export type Profile = {
   activity_level: number;
   goal_mode: GoalMode;
 };
-
-// POST /api/recognize 응답
-export type RecognizedItem = {
-  slot: number; // 식판 칸 번호 (왼쪽 위부터 1)
-  menu: Menu | null; // null = 인식 실패 → 사용자가 직접 고른다
-  confidence: number; // 0~1
-};
-export type RecognizeResponse = { items: RecognizedItem[] };

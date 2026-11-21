@@ -1,0 +1,8 @@
+# 내려받거나 만들어지는 데이터 (스크립트로 다시 만들 수 있음)
+data/raw/
+data/menu_cls/
+# 학식 사진 (인스타 사진은 저작권이 있어 저장소에 올리지 않는다)
+data/kentech_photos/
+# 학습 결과물 (배포용 ONNX는 web/public/models/로 복사해서 커밋)
+runs/
+*.pt

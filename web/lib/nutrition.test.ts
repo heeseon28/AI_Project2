@@ -58,7 +58,7 @@ describe("date", () => {
 
 describe("recommend", () => {
   const daily = { kcal: 2000, carb: 250, protein: 100, fat: 60, sodium: 2000 };
-  const m = (id: number, protein: number, sodium = 500): Menu => ({ id, name: `m${id}`, price: null, kcal: 500, carb: 50, protein, fat: 15, sodium });
+  const m = (id: number, protein: number, sodium = 500): Menu => ({ id, name: `m${id}`, price: null, model_class_id: null, kcal: 500, carb: 50, protein, fat: 15, sodium });
   const rows = [m(1, 10), m(2, 40), m(3, 40, 3000)].map((menu) => ({ date: "2026-11-19", meal: "dinner" as const, corner: "A", menu }));
 
   it("단백질 많고 나트륨 적은 메뉴가 1등", () => {
