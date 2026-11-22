@@ -30,7 +30,7 @@ Next.js 16 + Tailwind + Supabase, Vercel 배포. 기획은 `../PRD.md`, 모델�
 
 ## 구조
 - `app/` 메인 `/`, 인식 `/log/new`, 분석 `/dashboard`, 내 정보 `/profile`, 로그인 `/login`, 식단표 관리 `/admin/menu`
-- `lib/tray.ts` 식판 사진을 `public/models/tray_layout.json` 칸대로 자르기 (CNN 입력 전처리의 첫 단계)
+- `lib/tray.ts` 사용자가 그린 음식 영역 다루기(이동·크기 조절·사진 안으로 제한)와 224×224 비율 유지 crop (CNN 입력 전처리의 첫 단계, MODEL_SPEC 6.1)
 - `lib/` 목표치 `nutrition.ts`, 예측 `forecast.ts`·`lstm.ts`(선택 기능), 추천 `recommend.ts`, 데이터 `week.ts`
 - `public/models/` 모델 파일 (`menu_cnn.onnx`는 Task 2에서 추가)
 - onnxruntime-web은 CDN에서 불러온다 (wasm이 커서 번들에 넣지 않음).

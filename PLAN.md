@@ -36,7 +36,7 @@
 | 1-1 | Vercel 가입(레포 주인 계정) → 프로젝트 연결, Root Directory `web` | A | Vercel URL이 로그인 없이 열림 |
 | 1-2 | AI Hub 가입·「한국 이미지(음식)」 다운로드 신청 | C | 승인 또는 대기 상태 확인 |
 | 1-3 | AI Hub 샘플 이미지 직접 보기, 클래스 폴더명을 `menu_classes.csv`와 대조 | C | MODEL_SPEC ⚠️ 항목 채움, 대표 샘플 표 작성 |
-| 1-4 | 학생식당 식판 칸 구성 실측 → `web/public/models/tray_layout.json` 수정 | D | 실제 식판 사진에 칸 가이드가 맞음 |
+| 1-4 | 사진 위 음식 영역 직접 지정(추가·이동·크기 조절·삭제) → 224×224 비율 유지 crop | A | ✅ `/log/new`에서 동작 |
 | 1-5 | 학식 사진 수집 시작 (팀원 4명 × 매 끼니) + `ml/data/kentech_labels.csv` 기록 | 전원 | Task 1 마감까지 30장 이상 |
 | 1-6 | 영양 시드 검토: `menus_seed_sources.csv`에서 1인분 양이 이상한 메뉴 수정 | B | 학식 1인분과 비슷한 값 |
 | 1-7 | PDF 보고서 작성 (아이디어 2개 비교, 흐름, 데이터 근거와 샘플, 모델 계획, 구조도, 리스크, 이름·학번) | D (전원 검토) | 2~3쪽 |
@@ -62,7 +62,7 @@
 |---|---|---|---|
 | 3-1 | ONNX 변환 + PyTorch와 출력 비교 (MODEL_SPEC 7.1) | C | 최대 오차 1e-4 이하 |
 | 3-2 | `web/public/models/menu_cnn.onnx`, `menu_cnn.labels.json` 배치 | C | 웹에서 로드됨 |
-| 3-3 | `web/lib/cnn.ts`: 칸 crop(`lib/tray.ts`) → 정규화 → `[N,3,224,224]` → 추론 → top-3 | A | 같은 사진에서 Python과 같은 top-1 |
+| 3-3 | `web/lib/cnn.ts`: 영역 crop(`lib/tray.ts` `cropRegion`) → 정규화 → `[N,3,224,224]` → 추론 → top-3 | A | 같은 사진에서 Python과 같은 top-1 |
 | 3-4 | 결과 카드: top-3 후보, 확신도, "확인 필요" 표시, "AI 모델 연결 전" 라벨 제거 | A | PRD F2~F4 |
 | 3-5 | Supabase 프로젝트 생성, 마이그레이션 실행, `menus_seed.csv` 임포트, Vercel 환경변수 | B | 로그인·저장 동작 |
 | 3-6 | 저장 시 `predictions`에 예측·확신도·`model_version` 기록 | B | 행이 쌓임 |
