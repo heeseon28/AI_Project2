@@ -5,4 +5,9 @@ data/menu_cls/
 data/kentech_photos/
 # 학습 결과물 (배포용 ONNX는 web/public/models/로 복사해서 커밋)
 runs/
+checkpoints/
+wandb/
 *.pt
+*.pth
+*.ckpt
+*.onnx

@@ -23,7 +23,7 @@
 | 학습 데이터 파이프라인 | AI Hub → ImageFolder 분할, 식판 사진 → 칸 crop (`ml/data/prepare_dataset.py`, 자체 점검 통과) |
 | AI Hub 이미지 | **미신청** |
 | 학식 사진 | **0장** |
-| Vercel 배포 | **안 함** (계정 생성 필요) |
+| Vercel 배포 | https://ai-project2-henna.vercel.app (로그인 없이 열림 확인) |
 | Supabase | **프로젝트 없음** |
 
 ---

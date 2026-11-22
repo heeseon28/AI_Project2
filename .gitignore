@@ -1,5 +1,37 @@
+# macOS 임시 파일
 .DS_Store
-__pycache__/
-*.pyc
+._*
+
+# 환경변수 (값이 없는 예시 파일은 공유)
+.env
+.env.*
+!.env.example
+
+# Python 가상환경·캐시
 .venv/
-final-project-task1.pdf
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# LaTeX 컴파일 보조 파일
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+
+# 로컬 작업·과제 자료 (저장소에 올리지 않음)
+/tmp/
+/final-project-task1.pdf
+/proposal_task1/
