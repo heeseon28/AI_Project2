@@ -32,23 +32,28 @@ def main():
         assert n == {"train": 16, "val": 2, "test": 2}, n
         assert json.loads((pd.OUT / "labels.json").read_text())[0] == classes[0]["menu_name"]
 
-        # 식판 사진: 칸 5개 중 2개만 라벨, 1개는 모델 클래스가 아닌 쌀밥
+        # 학식 사진: 네모 3개 중 1개는 모델 클래스가 아닌 쌀밥, 1행은 "쓸 음식 없음" 표시
         photos = tmp / "photos"
         photos.mkdir()
-        Image.new("RGB", (400, 300), "white").save(photos / "a.jpg")
+        Image.new("RGB", (400, 300), "white").save(photos / "a.png")
+        Image.new("RGB", (400, 300), "white").save(photos / "b.png")
         labels = tmp / "labels.csv"
         with open(labels, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            w.writerow(["file", "date", "반찬1", "반찬2", "반찬3", "밥", "국"])
-            w.writerow(["a.jpg", "2026-11-24", "배추김치", "", "", "쌀밥", "미역국"])
+            w.writerow(["file", "group", "x", "y", "w", "h", "menu"])
+            w.writerow(["a.png", "11-20_중식", "0.1", "0.2", "0.25", "0.5", "배추김치"])
+            w.writerow(["a.png", "11-20_중식", "0.5", "0.5", "0.5", "0.5", "미역국"])
+            w.writerow(["a.png", "11-20_중식", "0", "0", "0.1", "0.1", "쌀밥"])
+            w.writerow(["b.png", "11-21_중식", "", "", "", "", ""])
         counts = pd.kentech(photos, labels)
         assert sum(counts.values()) == 2, counts
-        crop = next((pd.OUT / "kentech").rglob("*_국.jpg"))
-        s = json.loads(pd.LAYOUT.read_text())["slots"][4]
-        assert Image.open(crop).size == (round((s["x"] + s["w"]) * 400) - round(s["x"] * 400), round((s["y"] + s["h"]) * 300) - round(s["y"] * 300))
+        crops = sorted((pd.OUT / "kentech").rglob("*.jpg"))
+        sizes = {c.name: Image.open(c).size for c in crops}
+        assert sizes == {"a_1.jpg": (100, 150), "a_2.jpg": (200, 150)}, sizes
+        assert {c.parent.parent.name for c in crops} == {pd.date_split("11-20_중식")}  # 같은 그룹은 같은 분할
 
         # 날짜 분할은 결정적이어야 한다
-        assert pd.date_split("2026-11-24") == pd.date_split("2026-11-24")
+        assert pd.date_split("11-24_중식") == pd.date_split("11-24_중식")
     print("ok")
 
 

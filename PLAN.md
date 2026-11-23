@@ -13,9 +13,20 @@
 | C 모델 | AI Hub 데이터 준비, 학습·평가, ONNX 변환 | MODEL_SPEC 유지 |
 | D 데이터·평가 | 학식 사진 수집·라벨링, 학식 테스트셋 평가, 보고서 | 발표 자료 |
 
-## 현재 상태 (2026-11-21)
+## 현재 상태 (2026-11-23)
 | 항목 | 상태 |
 |---|---|
+| PRD.md, MODEL_SPEC.md (+ 영어판) | 작성됨, Task 1 제출본과 일치 |
+| 웹 (Next.js, Vercel) | 동작. 로그인 없이 열림, Supabase 없이도 실행 |
+| 인식 화면 | 사진 → 사용자가 음식 영역 직접 지정 → 224×224 비율 유지 crop → "AI 모델 연결 전" + 수동 선택 |
+| 영양 데이터 | 식약처 DB 19,738행, 메뉴 68개 1인분 시드 (`ml/data/menus_seed.csv`) |
+| AI Hub 이미지 | 다운로드 완료. 67개 클래스 67,086장 추출, train 53,696 / val 6,695 / test 6,695 분할 |
+| 학식 사진 | 인스타 500장 수집 (`ml/data/kentech_photos/`, Git 제외). **라벨링 0장** → `ml/data/label_tool.py` |
+| 학습 코드 | `ml/menu_cnn/train.py` (3단계 학습·평가·ONNX 변환). 로컬 점검 통과, **본 학습은 Colab에서** (8GB 맥은 epoch당 수 시간) |
+| Vercel 배포 | https://ai-project2-henna.vercel.app |
+| Supabase | **프로젝트 없음** |
+
+---|---|
 | PRD.md, MODEL_SPEC.md | 작성됨 |
 | 웹 스켈레톤 (Next.js, Vercel 구성) | 동작. 메인·인식 화면은 로그인 없이 열림, Supabase 없이도 빌드·실행됨 |
 | 인식 화면 | 사진 → 칸별 crop → "AI 모델 연결 전" 라벨 + 수동 선택 |

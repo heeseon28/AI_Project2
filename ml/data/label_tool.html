@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>학식 라벨링</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 0; display: flex; height: 100vh; }
+  #left { flex: 1; display: flex; align-items: center; justify-content: center; background: #222; overflow: hidden; }
+  #stage { position: relative; touch-action: none; user-select: none; }
+  #stage img { display: block; max-width: calc(100vw - 380px); max-height: 100vh; pointer-events: none; }
+  .box { position: absolute; border: 2px solid #f59e0b; background: rgba(245,158,11,.12); cursor: move; }
+  .box.done { border-color: #10b981; background: rgba(16,185,129,.12); }
+  .box.sel { outline: 3px solid #fff; }
+  .box span { position: absolute; left: 0; top: 0; background: inherit; color: #fff; font-size: 12px; padding: 0 3px; background: #111a; }
+  .handle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; border-radius: 50%; background: #fff; cursor: nwse-resize; }
+  #right { width: 360px; padding: 12px; overflow: auto; box-sizing: border-box; }
+  #caption { background: #f3f4f6; padding: 8px; border-radius: 6px; white-space: pre-wrap; }
+  #hints button, #nav button { margin: 2px; }
+  ul { padding-left: 18px; }
+  li.sel { font-weight: bold; }
+  .muted { color: #6b7280; font-size: 12px; }
+  #err { color: #b91c1c; }
+</style>
+</head>
+<body>
+<div id="left"><div id="stage"><img id="img" alt="학식 사진"></div></div>
+<div id="right">
+  <div id="progress"></div>
+  <div id="nav">
+    <button id="prev">← 이전</button>
+    <button id="save">저장하고 다음 (Enter)</button>
+    <button id="next">건너뛰기 →</button>
+    <button id="todo">다음 미완료</button>
+  </div>
+  <p class="muted" id="file"></p>
+  <div id="caption"></div>
+  <h4>선택한 네모의 클래스 (숫자키 1~9)</h4>
+  <div id="hints"></div>
+  <input id="search" list="classlist" placeholder="클래스 검색 후 Enter" style="width: 100%">
+  <datalist id="classlist"></datalist>
+  <h4>네모 목록</h4>
+  <ul id="list"></ul>
+  <p id="err"></p>
+  <p class="muted">
+    사진 위를 끌어 음식 하나마다 네모를 그린다 → 클래스를 고른다. 네모 끌기 = 이동, 흰 점 = 크기, Delete = 선택 네모 삭제.<br>
+    67개 클래스에 없는 음식은 그리지 않는다. 쓸 음식이 하나도 없으면 네모 없이 저장한다(검토 완료 표시).
+  </p>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let S, idx = 0, regions = [], sel = -1, drag = null;
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+function fit(r) {
+  const w = clamp(r.w, 0.02, 1), h = clamp(r.h, 0.02, 1);
+  return { ...r, w, h, x: clamp(r.x, 0, 1 - w), y: clamp(r.y, 0, 1 - h) };
+}
+
+async function init() {
+  S = await (await fetch("/api/state")).json();
+  $("classlist").innerHTML = S.classes.map((c) => `<option value="${c}">`).join("");
+  idx = Math.max(0, S.items.findIndex((it) => !(it.file in S.labels)));
+  load();
+}
+
+function load() {
+  const it = S.items[idx];
+  regions = (S.labels[it.file] || []).map((r) => ({ ...r }));
+  sel = regions.length - 1;
+  $("img").src = "/img?f=" + encodeURIComponent(it.file);
+  $("file").textContent = `${idx + 1} / ${S.items.length} · ${it.file} · 그룹 ${it.group}`;
+  $("caption").textContent = it.caption;
+  $("hints").innerHTML = it.hints.map((c, i) => `<button data-c="${c}">${i < 9 ? i + 1 + ". " : ""}${c}</button>`).join("") || '<span class="muted">캡션에서 찾은 클래스 없음 — 검색으로 고르기</span>';
+  $("err").textContent = "";
+  const done = Object.keys(S.labels).length;
+  $("progress").textContent = `완료 ${done} / ${S.items.length}`;
+  render();
+}
+
+function render() {
+  const st = $("stage");
+  st.querySelectorAll(".box").forEach((b) => b.remove());
+  regions.forEach((r, i) => {
+    const b = document.createElement("div");
+    b.className = "box" + (r.menu ? " done" : "") + (i === sel ? " sel" : "");
+    b.dataset.i = i;
+    Object.assign(b.style, { left: r.x * 100 + "%", top: r.y * 100 + "%", width: r.w * 100 + "%", height: r.h * 100 + "%" });
+    b.innerHTML = `<span>${i + 1} ${r.menu || "?"}</span><div class="handle"></div>`;
+    st.appendChild(b);
+  });
+  $("list").innerHTML = regions.map((r, i) => `<li class="${i === sel ? "sel" : ""}" data-i="${i}">${i + 1}. ${r.menu || "(클래스 선택 필요)"}</li>`).join("");
+}
+
+function pt(e) {
+  const r = $("stage").getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+}
+
+$("stage").addEventListener("pointerdown", (e) => {
+  const [x, y] = pt(e);
+  const b = e.target.closest(".box");
+  if (b) {
+    sel = +b.dataset.i;
+    drag = { mode: e.target.classList.contains("handle") ? "resize" : "move", ax: x, ay: y, orig: { ...regions[sel] } };
+  } else {
+    regions.push({ x, y, w: 0, h: 0, menu: "" });
+    sel = regions.length - 1;
+    drag = { mode: "draw", ax: x, ay: y };
+  }
+  $("stage").setPointerCapture(e.pointerId);
+  render();
+});
+$("stage").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const [x, y] = pt(e), o = drag.orig, r = regions[sel];
+  if (drag.mode === "draw") Object.assign(r, { x: Math.min(x, drag.ax), y: Math.min(y, drag.ay), w: Math.abs(x - drag.ax), h: Math.abs(y - drag.ay) });
+  else if (drag.mode === "move") regions[sel] = fit({ ...o, x: o.x + x - drag.ax, y: o.y + y - drag.ay });
+  else regions[sel] = fit({ ...o, w: Math.min(o.w + x - drag.ax, 1 - o.x), h: Math.min(o.h + y - drag.ay, 1 - o.y) });
+  render();
+});
+$("stage").addEventListener("pointerup", () => {
+  if (drag?.mode === "draw") {
+    const r = regions[sel];
+    if (r.w < 0.02 && r.h < 0.02) { regions.pop(); sel = regions.length - 1; }  // 탭은 네모로 치지 않는다
+    else regions[sel] = fit(r);
+  }
+  drag = null;
+  render();
+});
+
+function assign(c) {
+  if (sel < 0 || !S.classes.includes(c)) return;
+  regions[sel].menu = c;
+  render();
+}
+$("hints").addEventListener("click", (e) => e.target.dataset.c && assign(e.target.dataset.c));
+$("search").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { assign(e.target.value.trim()); e.target.value = ""; e.stopPropagation(); }
+});
+$("list").addEventListener("click", (e) => { if (e.target.dataset.i) { sel = +e.target.dataset.i; render(); } });
+
+async function save() {
+  if (regions.some((r) => !r.menu)) { $("err").textContent = "클래스를 고르지 않은 네모가 있어요."; return; }
+  const it = S.items[idx];
+  const res = await fetch("/api/save", { method: "POST", body: JSON.stringify({ file: it.file, regions }) });
+  if (!res.ok) { $("err").textContent = (await res.json()).error; return; }
+  S.labels[it.file] = regions.map((r) => ({ ...r }));
+  go(1);
+}
+function go(d) { idx = clamp(idx + d, 0, S.items.length - 1); load(); }
+$("save").onclick = save;
+$("prev").onclick = () => go(-1);
+$("next").onclick = () => go(1);
+$("todo").onclick = () => {
+  const n = S.items.findIndex((it, i) => i > idx && !(it.file in S.labels));
+  if (n >= 0) { idx = n; load(); }
+};
+
+document.addEventListener("keydown", (e) => {
+  if (e.target === $("search")) return;
+  if (e.key === "Enter") save();
+  else if (e.key === "ArrowLeft") go(-1);
+  else if (e.key === "ArrowRight") go(1);
+  else if ((e.key === "Delete" || e.key === "Backspace") && sel >= 0) { regions.splice(sel, 1); sel = regions.length - 1; render(); }
+  else if (/^[1-9]$/.test(e.key)) { const c = S.items[idx].hints[+e.key - 1]; if (c) assign(c); }
+});
+
+init();
+</script>
+</body>
+</html>
