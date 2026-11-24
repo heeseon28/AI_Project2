@@ -37,15 +37,24 @@ def main():
         photos.mkdir()
         Image.new("RGB", (400, 300), "white").save(photos / "a.png")
         Image.new("RGB", (400, 300), "white").save(photos / "b.png")
-        labels = tmp / "labels.csv"
-        with open(labels, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["file", "group", "x", "y", "w", "h", "menu"])
-            w.writerow(["a.png", "11-20_중식", "0.1", "0.2", "0.25", "0.5", "배추김치"])
-            w.writerow(["a.png", "11-20_중식", "0.5", "0.5", "0.5", "0.5", "미역국"])
-            w.writerow(["a.png", "11-20_중식", "0", "0", "0.1", "0.1", "쌀밥"])
-            w.writerow(["b.png", "11-21_중식", "", "", "", "", ""])
-        counts = pd.kentech(photos, labels)
+        def write(path, rows):  # 두 사람이 나눠 한 몫 흉내
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                csv.writer(f).writerows([["file", "group", "x", "y", "w", "h", "menu"], *rows])
+            return path
+
+        part1 = write(tmp / "labels_1.csv", [
+            ["a.png", "11-20_중식", "0.1", "0.2", "0.25", "0.5", "배추김치"],
+            ["a.png", "11-20_중식", "0.5", "0.5", "0.5", "0.5", "미역국"],
+            ["a.png", "11-20_중식", "0", "0", "0.1", "0.1", "쌀밥"],
+        ])
+        part2 = write(tmp / "labels_2.csv", [["b.png", "11-21_중식", "", "", "", "", ""]])
+        dup = write(tmp / "labels_dup.csv", [["a.png", "11-20_중식", "0", "0", "0.5", "0.5", "미역국"]])
+        try:
+            pd.kentech(photos, [part1, dup])
+            raise AssertionError("같은 사진이 두 라벨 파일에 있으면 멈춰야 한다")
+        except ValueError:
+            pass
+        counts = pd.kentech(photos, [part1, part2])
         assert sum(counts.values()) == 2, counts
         crops = sorted((pd.OUT / "kentech").rglob("*.jpg"))
         sizes = {c.name: Image.open(c).size for c in crops}

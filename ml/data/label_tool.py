@@ -4,7 +4,8 @@
     → http://127.0.0.1:8765 를 브라우저로 연다
 
 --photos 폴더에는 menus.csv(사진파일, 게시물_ID, 메뉴설명_게시글원문)가 있어야 한다.
-결과는 kentech_labels.csv 에 사진 한 장 저장할 때마다 바로 쓴다 (여러 명이 나눠 할 때는 --labels 파일을 따로 쓰고 나중에 합친다).
+결과는 kentech_labels.csv 에 사진 한 장 저장할 때마다 바로 쓴다.
+여러 명이 나눠 할 때: --part 2/4 --labels labels_2.csv 처럼 몫과 파일을 따로 쓰고, prepare_dataset.py kentech --labels 에 파일들을 같이 넘긴다.
 
 kentech_labels.csv 형식: file,group,x,y,w,h,menu
   x,y,w,h 는 사진 크기에 대한 비율(0~1). menu 는 menu_classes.csv 의 menu_name.
@@ -82,10 +83,14 @@ def validate(regions, classes: set[str]):
     return clean
 
 
-def serve(photos: Path, labels_path: Path, port: int):
+def serve(photos: Path, labels_path: Path, port: int, part: str | None = None):
     classes = [r["menu_name"] for r in csv.DictReader(open(HERE / "menu_classes.csv", encoding="utf-8")) if r["class_id"]]
     items = load_items(photos, classes)
-    groups = {i["file"]: i["group"] for i in items}
+    groups = {i["file"]: i["group"] for i in items}  # 나눠 하더라도 전체 기준 (다른 몫의 라벨이 파일에 있어도 저장이 깨지지 않게)
+    if part:  # "k/n": 사진을 순서대로 n등분한 k번째만 보여 준다
+        k, n = map(int, part.split("/"))
+        assert 1 <= k <= n, "--part는 1/4처럼 k/n (1 ≤ k ≤ n)"
+        items = items[(k - 1) * len(items) // n : k * len(items) // n]
     labels = read_labels(labels_path)
     page = (HERE / "label_tool.html").read_bytes()
     root = photos.resolve()
@@ -136,5 +141,6 @@ if __name__ == "__main__":
     ap.add_argument("--photos", type=Path, required=True)
     ap.add_argument("--labels", type=Path, default=HERE / "kentech_labels.csv")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--part", help="여럿이 나눠 할 때 k/n (예: 2/4 → 4등분한 두 번째 몫만)")
     a = ap.parse_args()
-    serve(a.photos, a.labels, a.port)
+    serve(a.photos, a.labels, a.port, a.part)

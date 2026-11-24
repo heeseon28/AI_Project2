@@ -138,12 +138,17 @@ def date_split(date: str) -> str:
     return "train" if h < 6 else "val" if h < 8 else "test"
 
 
-def kentech(photos: Path, labels: Path):
-    """label_tool.py가 만든 kentech_labels.csv의 네모대로 잘라 클래스 폴더에 넣는다. 크기 조정은 학습 변환이 한다."""
+def kentech(photos: Path, labels: list[Path]):
+    """label_tool.py가 만든 라벨 CSV들(나눠 한 몫들)의 네모대로 잘라 클래스 폴더에 넣는다. 크기 조정은 학습 변환이 한다."""
     classes = {r["menu_name"]: r for r in load_classes()}
     counts, skipped = defaultdict(int), defaultdict(int)
     img, img_file, n_in_file = None, None, 0
-    for row in csv.DictReader(open(labels, encoding="utf-8")):
+    owner = {}
+    rows = [(p, r) for p in labels for r in csv.DictReader(open(p, encoding="utf-8"))]
+    for p, row in rows:
+        if owner.setdefault(row["file"], p) != p:  # 같은 사진을 두 명이 라벨링하면 잘린 이미지가 서로 덮어쓴다
+            raise ValueError(f"{row['file']}이(가) {owner[row['file']].name}와 {p.name}에 둘 다 있음 → 한쪽에서 지우기")
+    for p, row in rows:
         if not row["menu"]:  # 검토했지만 쓸 음식이 없는 사진
             continue
         if row["menu"] not in classes:
@@ -176,7 +181,7 @@ if __name__ == "__main__":
     a.add_argument("--per-class", type=int)
     k = sub.add_parser("kentech")
     k.add_argument("--photos", type=Path, required=True)
-    k.add_argument("--labels", type=Path, required=True)
+    k.add_argument("--labels", type=Path, nargs="+", required=True, help="라벨 CSV (나눠 했으면 여러 개)")
     x = sub.add_parser("aihub-extract")
     x.add_argument("--zip", type=Path, required=True)
     x.add_argument("--dest", type=Path, default=HERE / "raw" / "aihub")
