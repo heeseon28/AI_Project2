@@ -30,7 +30,7 @@ def main():
         c0 = pd.class_dir(classes[0])
         n = {s: len(list((pd.OUT / "aihub" / s / c0).iterdir())) for s in ("train", "val", "test")}
         assert n == {"train": 16, "val": 2, "test": 2}, n
-        assert json.loads((pd.OUT / "labels.json").read_text())[0] == classes[0]["menu_name"]
+        assert json.loads((pd.OUT / "labels.json").read_text(encoding="utf-8"))[0] == classes[0]["menu_name"]
 
         # 학식 사진: 네모 3개 중 1개는 모델 클래스가 아닌 쌀밥, 1행은 "쓸 음식 없음" 표시
         photos = tmp / "photos"

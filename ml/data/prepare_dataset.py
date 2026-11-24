@@ -36,7 +36,7 @@ def load_classes():
     rows.sort(key=lambda r: int(r["class_id"]))
     assert [int(r["class_id"]) for r in rows] == list(range(len(rows))), "class_id는 0부터 빈틈없이 이어져야 한다"
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "labels.json").write_text(json.dumps([r["menu_name"] for r in rows], ensure_ascii=False, indent=1))
+    (OUT / "labels.json").write_text(json.dumps([r["menu_name"] for r in rows], ensure_ascii=False, indent=1), encoding="utf-8")
     return rows
 
 
@@ -70,7 +70,10 @@ def aihub(src: Path, per_class: int | None, seed: int = 0):
             for f in fs:
                 link = d / f.name
                 if not link.exists():
-                    link.symlink_to(f.resolve())
+                    try:
+                        link.symlink_to(f.resolve())
+                    except OSError:  # Windows는 개발자 모드가 아니면 심볼릭 링크 권한이 없다 → 하드링크 (같은 디스크, 용량 그대로)
+                        link.hardlink_to(f.resolve())
         print(f"{class_dir(r)}: train {len(splits['train'])} / val {len(splits['val'])} / test {len(splits['test'])}")
     if missing:
         print("AI Hub에서 못 찾은 클래스 (menu_classes.csv의 aihub_class를 실제 폴더명으로 고치기):", missing)
@@ -82,7 +85,8 @@ def extract_aihub(zip_path: Path, dest: Path) -> int:
     import zipfile
 
     def name(info):  # 이 ZIP은 한글 파일명을 cp949로 저장했다 (UTF-8 플래그 없음)
-        n = info.filename if info.flag_bits & 0x800 else info.filename.encode("cp437").decode("cp949")
+        # orig_filename은 항상 cp437로 읽힌 원본 (최신 Python은 filename을 이미 고쳐 두기도 해서 그걸 다시 바꾸면 깨진다)
+        n = info.filename if info.flag_bits & 0x800 else info.orig_filename.encode("cp437").decode("cp949")
         return unicodedata.normalize("NFC", n)
 
     wanted = {r["aihub_class"] for r in load_classes()}

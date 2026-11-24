@@ -60,7 +60,7 @@ class ClassId:
 
 
 def labels() -> list[str]:
-    return json.loads((DATA / "labels.json").read_text())
+    return json.loads((DATA / "labels.json").read_text(encoding="utf-8"))
 
 
 def folder(domain: str, split: str, tf):
@@ -209,7 +209,7 @@ def train(a):
         print("학식 train/val 데이터가 없어 3단계를 건너뜀 (라벨링 후 다시 실행)")
     (out / "best.pt").write_bytes((out / f"{best}.pt").read_bytes())
     log["best"] = best
-    (out / "train_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1))
+    (out / "train_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
     print("완료:", log)
 
 
@@ -231,7 +231,7 @@ def test(a):
             r = evaluate(m, loader(ds, False), n, dev, a.max_batches)
             print(f"{domain} test: top1 {r['top1']:.3f} top3 {r['top3']:.3f} macroF1 {r['macro_f1']:.3f} (n={r['n']}, 클래스 {r['classes_evaluated']}/{n})")
             report[domain] = r
-    Path(a.ckpt).with_name("test_report.json").write_text(json.dumps(report, ensure_ascii=False))
+    Path(a.ckpt).with_name("test_report.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
 
 
 def export(a):
@@ -252,7 +252,7 @@ def export(a):
     same = bool((ref.argmax(1) == got.argmax(1)).all())
     print(f"ONNX {path} ({path.stat().st_size / 1e6:.1f} MB): max |diff| {diff:.2e}, top-1 일치 {same}")
     assert diff <= 1e-4 and same, "PyTorch와 ONNX 출력이 다름 → 배포 보류"
-    path.with_suffix(".labels.json").write_text(json.dumps({"model_version": path.stem, "num_classes": n, "labels": labels(), "threshold": a.threshold}, ensure_ascii=False, indent=1))
+    path.with_suffix(".labels.json").write_text(json.dumps({"model_version": path.stem, "num_classes": n, "labels": labels(), "threshold": a.threshold}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":
