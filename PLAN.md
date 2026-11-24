@@ -13,7 +13,7 @@
 | C 모델 | AI Hub 데이터 준비, 학습·평가, ONNX 변환 | MODEL_SPEC 유지 |
 | D 데이터·평가 | 학식 사진 수집·라벨링, 학식 테스트셋 평가, 보고서 | 발표 자료 |
 
-## 현재 상태 (2026-11-23)
+## 현재 상태 (2026-11-24)
 | 항목 | 상태 |
 |---|---|
 | PRD.md, MODEL_SPEC.md (+ 영어판) | 작성됨, Task 1 제출본과 일치 |
@@ -21,20 +21,10 @@
 | 인식 화면 | 사진 → 사용자가 음식 영역 직접 지정 → 224×224 비율 유지 crop → "AI 모델 연결 전" + 수동 선택 |
 | 영양 데이터 | 식약처 DB 19,738행, 메뉴 68개 1인분 시드 (`ml/data/menus_seed.csv`) |
 | AI Hub 이미지 | 다운로드 완료. 67개 클래스 67,086장 추출, train 53,696 / val 6,695 / test 6,695 분할 |
-| 학식 사진 | 인스타 500장 수집 (`ml/data/kentech_photos/`, Git 제외). **라벨링 0장** → `ml/data/label_tool.py` |
-| 학습 코드 | `ml/menu_cnn/train.py` (3단계 학습·평가·ONNX 변환). 로컬 점검 통과, **본 학습은 Colab에서** (8GB 맥은 epoch당 수 시간) |
+| 학식 사진 | 인스타 500장 수집 (`ml/data/kentech_photos/`, Git 제외). **라벨링 0장**, 4명 분담 준비 완료 (`ml/data/README.md` "라벨링 나눠 하기") |
+| 모델 (1·2단계, AI Hub만) | ✅ MobileNetV3 **AI Hub test top-1 85.8% / top-3 95.1%**, ResNet-18 비교 완료 (아래 Task 2 결과). 학습은 팀원 PC GPU(RTX 4060 Ti)에서 약 30분 |
+| ONNX | ✅ `menu_cnn.onnx` 16.3MB, PyTorch 대비 최대 오차 1.05e-5·top-1 일치. 아직 `web/public/models/`에 넣지 않음, τ는 임시 0.5 |
 | Vercel 배포 | https://ai-project2-henna.vercel.app |
-| Supabase | **프로젝트 없음** |
-
----|---|
-| PRD.md, MODEL_SPEC.md | 작성됨 |
-| 웹 스켈레톤 (Next.js, Vercel 구성) | 동작. 메인·인식 화면은 로그인 없이 열림, Supabase 없이도 빌드·실행됨 |
-| 인식 화면 | 사진 → 칸별 crop → "AI 모델 연결 전" 라벨 + 수동 선택 |
-| 영양 데이터 | 식약처 DB 19,738행 수집 스크립트, 메뉴 68개 1인분 시드 (`ml/data/menus_seed.csv`) |
-| 학습 데이터 파이프라인 | AI Hub → ImageFolder 분할, 식판 사진 → 칸 crop (`ml/data/prepare_dataset.py`, 자체 점검 통과) |
-| AI Hub 이미지 | **미신청** |
-| 학식 사진 | **0장** |
-| Vercel 배포 | https://ai-project2-henna.vercel.app (로그인 없이 열림 확인) |
 | Supabase | **프로젝트 없음** |
 
 ---
@@ -66,7 +56,20 @@
 | 2-6 | 자주 틀리는 메뉴 대응: 클래스 병합 또는 학식 사진 추가 후 재학습 | C, D | 2-5 재측정 |
 | 2-7 | 확신도 기준 0.5 검증 (학식 val) | D | 기준값 확정 |
 
-**학습 환경**: Colab T4. AI Hub 원본이 크면 `--per-class 300`으로 줄여 먼저 돌린다.
+**학습 환경**: NVIDIA GPU가 있는 팀원 PC (방법은 `ml/menu_cnn/README.md`). GPU가 없으면 Colab T4. 8GB 맥은 swap 때문에 본 학습에 쓰지 않는다.
+
+### Task 2 결과 (2026-11-24, 1·2단계 = AI Hub만, 학식 3단계 전)
+2-1, 2-3, 2-4 완료. 같은 분할·전처리·설정, AI Hub test 6,695장(67클래스 전부).
+
+| 모델 | top-1 | top-3 | macro-F1 | 파라미터 | 가중치 | CPU 6영역 추론 |
+|---|---|---|---|---|---|---|
+| **MobileNetV3-Large** (채택) | **85.8%** | **95.1%** | 0.858 | 4.29M | 16.6MB (ONNX 16.3MB) | 47ms (onnxruntime 12ms) |
+| ResNet-18 | 85.4% | 94.5% | 0.853 | 11.21M | 42.8MB | 93ms |
+
+- val 기준 최고: MobileNet 2단계 20 epoch째 macro-F1 0.868, ResNet-18 0.851. 둘 다 20 epoch까지 조금씩 올라 조기 종료 없음.
+- 추론 시간은 PC CPU(4스레드, PyTorch)에서 224×224 6장 묶음. 휴대폰 브라우저 시간은 Task 4(4-3)에서 따로 잰다.
+- 자주 헷갈리는 짝 (test): 오징어채볶음↔진미채볶음, 북엇국↔계란국, 불고기→제육볶음, 찜닭→닭볶음탕. 정확도 낮은 클래스: 김치찜 70%, 동태찌개 71%, 김치찌개 72%. → 2-6에서 학식 결과와 함께 병합 여부 판단.
+- **남은 것**: 2-2 라벨링 → 3단계 학습(`train.py train --resume runs/mnv3/stage2.pt`) → 2-5 학식 test → 2-7 τ 확정.
 
 ## Task 3: 연동 (마감 ⚠️)
 | # | 할 일 | 담당 | 완료 기준 |

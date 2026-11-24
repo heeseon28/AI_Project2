@@ -1,12 +1,13 @@
 """학식 메뉴 분류 CNN 학습·평가·ONNX 변환. MODEL_SPEC 3~7절.
 
     python train.py train  [--model mobilenet|resnet18] [--run runs/mnv3]   # 3단계 학습 (학식 데이터 없으면 2단계까지)
+    python train.py train  --resume runs/mnv3/stage2.pt --run runs/mnv3     # 1·2단계 건너뛰고 3단계만 (학식 라벨이 늘었을 때)
     python train.py test   --ckpt runs/mnv3/best.pt                          # AI Hub·학식 test 평가
     python train.py export --ckpt runs/mnv3/best.pt                          # ONNX 변환 + PyTorch와 출력 비교
 
 데이터는 ../data/prepare_dataset.py 가 만든 menu_cls/{aihub,kentech}/{train,val,test}/<class_id>_<메뉴>/ 를 쓴다.
 빠른 점검: --max-batches 5 를 붙이면 epoch마다 몇 배치만 돈다.
-8GB 맥에서는 한 epoch에 수 시간이 걸린다 → Colab GPU에서 돌린다 (README.md).
+NVIDIA GPU PC(RTX 4060 Ti에서 1·2단계 약 30분) 또는 Colab GPU에서 돌린다 (README.md). 8GB 맥은 swap 때문에 너무 느리다.
 """
 import argparse
 import json
@@ -161,9 +162,12 @@ def run_stage(name, m, opt, sched, train_dl, val_dl, epochs, patience, dev, n, o
     return best
 
 
+WORKERS = 4  # 이미지 읽기·증강 프로세스 수 (--workers). GPU 사용률이 낮으면 늘린다
+
+
 def loader(ds, train, bs=64):
     g = torch.Generator().manual_seed(42)
-    return DataLoader(ds, bs, shuffle=train, num_workers=4, persistent_workers=True, generator=g, drop_last=train and len(ds) > bs)
+    return DataLoader(ds, bs, shuffle=train, num_workers=WORKERS, persistent_workers=WORKERS > 0, generator=g, drop_last=train and len(ds) > bs)
 
 
 def train(a):
@@ -174,27 +178,32 @@ def train(a):
     m = build(a.model, n).to(dev)
     ai_train, ai_val = folder("aihub", "train", TRAIN_TF), folder("aihub", "val", EVAL_TF)
     assert ai_train and ai_val, "먼저 prepare_dataset.py aihub 실행"
-    tr, va = loader(ai_train, True), loader(ai_val, False)
     log = {"model": a.model, "device": dev.type, "classes": n}
+    best = None
+    if a.resume:  # 1·2단계는 이미 끝났다: 그 가중치에서 3단계만 다시 한다
+        m.load_state_dict(torch.load(a.resume, map_location=dev))
+        log["resumed_from"] = str(a.resume)
+    else:
+        tr, va = loader(ai_train, True), loader(ai_val, False)
 
-    # 1단계: 분류기만 (AdamW head 1e-3, 고정 lr, 5 epoch)
-    head = head_params(m)
-    for p in m.parameters():
-        p.requires_grad = False
-    for p in head:
-        p.requires_grad = True
-    opt = torch.optim.AdamW(head, lr=1e-3, weight_decay=1e-4)
-    log["stage1_val_macro_f1"] = run_stage("stage1", m, opt, None, tr, va, a.epochs1, 0, dev, n, out, a.max_batches, freeze_backbone=True)
+        # 1단계: 분류기만 (AdamW head 1e-3, 고정 lr, 5 epoch)
+        head = head_params(m)
+        for p in m.parameters():
+            p.requires_grad = False
+        for p in head:
+            p.requires_grad = True
+        opt = torch.optim.AdamW(head, lr=1e-3, weight_decay=1e-4)
+        log["stage1_val_macro_f1"] = run_stage("stage1", m, opt, None, tr, va, a.epochs1, 0, dev, n, out, a.max_batches, freeze_backbone=True)
 
-    # 2단계: 전체 (backbone 1e-4, head 3e-4, cosine T_max=20, 최대 20 epoch, patience 3)
-    for p in m.parameters():
-        p.requires_grad = True
-    head_ids = {id(p) for p in head}
-    backbone = [p for p in m.parameters() if id(p) not in head_ids]
-    opt = torch.optim.AdamW([{"params": backbone, "lr": 1e-4}, {"params": head, "lr": 3e-4}], weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=a.epochs2)
-    log["stage2_val_macro_f1"] = run_stage("stage2", m, opt, sched, tr, va, a.epochs2, 3, dev, n, out, a.max_batches)
-    best = "stage2"
+        # 2단계: 전체 (backbone 1e-4, head 3e-4, cosine T_max=20, 최대 20 epoch, patience 3)
+        for p in m.parameters():
+            p.requires_grad = True
+        head_ids = {id(p) for p in head}
+        backbone = [p for p in m.parameters() if id(p) not in head_ids]
+        opt = torch.optim.AdamW([{"params": backbone, "lr": 1e-4}, {"params": head, "lr": 3e-4}], weight_decay=1e-4)
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=a.epochs2)
+        log["stage2_val_macro_f1"] = run_stage("stage2", m, opt, sched, tr, va, a.epochs2, 3, dev, n, out, a.max_batches)
+        best = "stage2"
 
     # 3단계: 학식 적응 (학식 train + 같은 수의 AI Hub train, 전 층 3e-5, T_max=10, 최대 10 epoch, 학식 val 기준)
     k_train, k_val = folder("kentech", "train", TRAIN_TF), folder("kentech", "val", EVAL_TF)
@@ -207,6 +216,7 @@ def train(a):
         best = "stage3"
     else:
         print("학식 train/val 데이터가 없어 3단계를 건너뜀 (라벨링 후 다시 실행)")
+    assert best, "--resume은 3단계용인데 학식 train/val 데이터가 없음 → prepare_dataset.py kentech 먼저"
     (out / "best.pt").write_bytes((out / f"{best}.pt").read_bytes())
     log["best"] = best
     (out / "train_log.json").write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -267,7 +277,9 @@ if __name__ == "__main__":
     ap.add_argument("--epochs2", type=int, default=20)
     ap.add_argument("--epochs3", type=int, default=10)
     ap.add_argument("--max-batches", type=int, help="빠른 점검용: epoch마다 이만큼만")
-    ap.add_argument("--data", type=Path, default=DATA, help="menu_cls 폴더 (Colab에서는 압축 푼 위치)")
+    ap.add_argument("--data", type=Path, default=DATA, help="menu_cls 폴더 (menu_cls_256.zip을 푼 위치)")
+    ap.add_argument("--resume", type=Path, help="train: 이 가중치(보통 runs/mnv3/stage2.pt)에서 3단계만")
+    ap.add_argument("--workers", type=int, default=WORKERS, help="데이터 로더 프로세스 수 (Colab은 2)")
     a = ap.parse_args()
-    DATA = a.data
+    DATA, WORKERS = a.data, a.workers
     {"train": train, "test": test, "export": export}[a.cmd](a)

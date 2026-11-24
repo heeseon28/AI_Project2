@@ -16,7 +16,7 @@ python fetch_nutrition.py          # 1분
 python build_menu_seed.py
 python test_prepare_dataset.py     # ok가 나와야 함
 python prepare_dataset.py aihub-extract --zip ~/Downloads/한국\ 음식\ 이미지/kfood.zip   # 67개 클래스 67,086장 → raw/aihub (10분)
-python prepare_dataset.py aihub --src raw/aihub                  # 80/10/10 분할 (심볼릭 링크)
+python prepare_dataset.py aihub --src raw/aihub                  # 80/10/10 분할 (심볼릭 링크, 권한 없는 Windows는 하드링크)
 
 # 학식 사진 라벨링 → 영역 이미지
 python label_tool.py --photos kentech_photos/instagram_screenshots/food_only_500   # http://127.0.0.1:8765

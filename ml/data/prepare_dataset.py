@@ -6,7 +6,7 @@
     python prepare_dataset.py pack                                   # Colab 업로드용 menu_cls_256.zip
 
 출력
-    menu_cls/aihub/{train,val,test}/<class_id>_<메뉴>/...    AI Hub 클래스별 80/10/10 층화 분할 (심볼릭 링크)
+    menu_cls/aihub/{train,val,test}/<class_id>_<메뉴>/...    AI Hub 클래스별 80/10/10 층화 분할 (심볼릭 링크, 안 되면 하드링크)
     menu_cls/kentech/{train,val,test}/<class_id>_<메뉴>/...  학식 사진을 라벨링 도구로 그린 네모대로 자른 이미지
     menu_cls/labels.json                                     클래스 인덱스 순서의 메뉴 이름 (웹 menu_cnn.labels.json의 원본)
 
